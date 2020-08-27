@@ -1,4 +1,5 @@
-# Mobile_Joystick_Brawl_Stars
+# AINDA NÃO FINALIZADO
+## Mobile_Joystick_Brawl_Stars
 Controle de movimentação para celular, similar ao do jogo "brawl stars". Implementação com Unity.
 
 
