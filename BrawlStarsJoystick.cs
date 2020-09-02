@@ -250,7 +250,6 @@ public class BrawlStarsJoystick : MonoBehaviour
 
         }
 
-
         return false;
     }
 
