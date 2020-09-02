@@ -17,21 +17,29 @@ public class BrawlStarsJoystick : MonoBehaviour
 	public float BackgroundMovementSpeed = 7, DeadArea = 0.3f, AreaBoundary = 0;
 	public Transform joystickBackground, joystickForground;
 	public Transform player;
-	
+    [Tooltip("GameObjects que podem causar interferência, por exemplo botões. (precisam ter Collider2D)")]
+    public List<Collider2D> IgnoreByCollider;
+	public List<string> IgnoreByName;
+
+
+    private List<string> ignore = new List<string>();
 	private float AreaLimite;
-	private int touchNum = 0;
-	private bool touchStart, ajustPos, keepMoving, canTouch;
-	private Vector2 pointA, pointB, cameraStartPos, offset;
+	private int touchNum=-1, touchs;
+	private bool touchStart, ajustPos, keepMoving, canTouch, justForTest;
+	private Vector2 pointA, pointB, cameraStartPos, offset, direction, dis;
 	private Vector3 joystickBG_backup, pointA_screen, scaleBackup, positionBackup, cameraStartPosBackup;
 	private string side;
-
+    private Touch touch_tmp;
 
 
 
     // Start is called before the first frame update
     void Start()
     {
-    	if(!OnFullscreen)
+        // StartCoroutine("MergeList");
+        MergeList();
+    	
+        if(!OnFullscreen)
     	{
 
 	    	if((Input.deviceOrientation == DeviceOrientation.Portrait) || (Input.deviceOrientation == DeviceOrientation.PortraitUpsideDown))
@@ -54,14 +62,15 @@ public class BrawlStarsJoystick : MonoBehaviour
 	    		}
 	    	}
 
-	        StartCoroutine("CheckIfJoystickPressed");
+	        // StartCoroutine("CheckIfJoystickPressed");
 
-	    	side = "right";
-	    	// side = "left";
+	    	// side = "right";
+	    	side = "left";
     	}
     	// Debug.Log("orientation: "+orientation);
         // player = GetComponent<Transform>();
-        AreaLimite = joystickBackground.localScale.x*2f + AreaBoundary;
+        touchs = Input.touchCount;
+        AreaLimite = joystickBackground.localScale.x*1.865f + AreaBoundary;
         scaleBackup = player.transform.localScale;
         // positionBackup = player.transform.position;
         // Debug.Log("DEBUG HERE: " + Camera.main.WorldToScreenPoint(joystickBackground.position));
@@ -73,129 +82,187 @@ public class BrawlStarsJoystick : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-    	if(Input.touchCount > 0)
-    	{
-    		RaycastHit2D infoHit = Physics2D.Raycast(Camera.main.ScreenToWorldPoint((Vector2)(Input.GetTouch(0).position)), Camera.main.transform.forward);
+        if(!touchStart)
+        {
 
-    		if(infoHit.collider != null)
-    		{
-    			print("Touched_> "+infoHit.transform.gameObject.name);
-    		}
-    	}
-		 // Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-		 //         RaycastHit hit = new RaycastHit();
-		 //         if(Input.GetMouseButton(0)) {
-		 //                if(Physics.Raycast(ray, out hit)) {
-		 //                   print(hit.collider.name);
-		 //                 }
-		 //              }
-   //  	 Touch touch = Input.touches[0];
-		 // Ray touchRay = Camera.main.ScreenPointToRay(touch.position);
-		 // RaycastHit2D[] hits = Physics2D.RaycastAll(touch.position, touch.position);
-		 // foreach( RaycastHit2D hit in hits ) {
-		  
-		 //     Debug.Log("touching object name="+hit.collider.name);
-		  
-		 // }
-        // Debug.Log("||||||"+Camera.main.WorldToScreenPoint(joystickBackground.position).x);
-        // Debug.Log("------"+Camera.main.ScreenToWorldPoint(joystickBackground.position));
-        if(canTouch && !touchStart)
-        {
-	    	cameraStartPos = new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y);
-        	pointA_screen = new Vector3(Input.GetTouch(touchNum).position.x, Input.GetTouch(touchNum).position.y, Camera.main.transform.position.z);
-        	// pointA_screen = new Vector3(Input.mousePosition.x, Input.mousePosition.y, Camera.main.transform.position.z);
-        	pointA = Camera.main.ScreenToWorldPoint(pointA_screen);
-	    	// Debug.Log(pointA);
-    		joystickBackground.position = Camera.main.ScreenToWorldPoint(new Vector3(pointA_screen.x, pointA_screen.y, joystickBackground.position.z));
-    		// aa.position = new Vector3(pointA.x, pointA.y, aa.position.z);
-        }
-        if(canTouch)
-        {
-        	touchStart = true;
-        	// pointB = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        	pointB = Camera.main.ScreenToWorldPoint(new Vector3(Input.GetTouch(touchNum).position.x, Input.GetTouch(touchNum).position.y, Camera.main.transform.position.z));
-    		// bb.position = new Vector3(pointB.x, pointB.y, bb.position.z);
+            if(Input.touchCount > 0)
+            {
+                touchNum = GetTouchNum();
+                if(touchNum != -1)
+                {
+                    touchs = Input.touchCount;
+                    touchStart = true;
+        	    	cameraStartPos = new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y);
+                    pointA_screen = new Vector3(Input.GetTouch(touchNum).position.x, Input.GetTouch(touchNum).position.y, Camera.main.transform.position.z);
+                	pointA = Camera.main.ScreenToWorldPoint(pointA_screen);
+                }
+
+                // print("TouchNum_> "+touchNum);
+
+            }
+
         }
         else
         {
-        	touchStart = false;
-        	joystickBackground.position = Camera.main.ScreenToWorldPoint(joystickBG_backup);
-        	joystickForground.localPosition = Vector3.zero;
-        	// joystickBackground.position = new Vector3(Camera.main.ScreenToWorldPoint(joystickBG_backup).x, Camera.main.ScreenToWorldPoint(joystickBG_backup).y, joystickBackground.position.z);
+
+            touchNum = UpdateTouchNum("++");
+
+            if((Input.GetTouch(touchNum)).phase == TouchPhase.Ended || touchNum <= -1)
+            {
+                touchStart = false;
+                ResetJoystickPosition();
+            }
+            else
+            {
+            	pointB = Camera.main.ScreenToWorldPoint(new Vector3(Input.GetTouch(touchNum).position.x, Input.GetTouch(touchNum).position.y, Camera.main.transform.position.z));
+                offset =  pointB - new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y) - pointA + cameraStartPos;
+                dis = new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y) - cameraStartPos;
+                float cos = GetCos(pointA, pointB-dis);
+                float sen = GetSen(pointA, pointB-dis);
+                Vector2 quadrant = GetQuadrant(pointA, pointB-dis);
+                    
+                direction = offset;
+
+                if(offset.magnitude > DeadArea)
+                {
+                    RotatePlayer(player);    
+                    moveCharacter(direction);
+                }
+
+                if(offset.magnitude > AreaLimite)
+                {
+                    float aux = 1.865f;
+
+                    Vector2 intersectionPoint = new Vector2((quadrant.x*cos*aux*joystickBackground.localScale.x+pointA.x), (quadrant.y*sen*aux*joystickBackground.localScale.y+pointA.y));
+                    Vector2 moveTo = pointA+pointB-dis-intersectionPoint;
+                    pointA = moveTo;
+
+                }
+
+                joystickBackground.position = new Vector3(pointA.x+dis.x, pointA.y+dis.y, joystickBackground.position.z);
+                joystickForground.position = new Vector3(pointB.x, pointB.y, joystickForground.position.z);
+
+            }
+            touchNum = UpdateTouchNum("--");
         }
-    	if(touchStart)
-    	{
-    		offset =  pointB - new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y) - pointA + cameraStartPos;
-			Vector2 dis = new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y) - cameraStartPos;
-    			
-    		Vector2 direction = Vector2.ClampMagnitude(offset, 1);
-    		
 
-    		if(offset.magnitude > DeadArea)
-    		{
-	    		moveCharacter(direction);
-    		}
-    		// Debug.Log("||||  "+(pointB-pointA));
-    		// Debug.Log("Point A: " + pointA);
-    		if(offset.magnitude > AreaLimite)
-    		{
-    			// ajustPos = true;
-    			// float BackgroundMovementSpeed = 6f;
-    			// pointA = Vector2.Lerp(pointA, pointB, BackgroundMovementSpeed * Time.deltaTime);
-
-    			pointA = Vector2.MoveTowards(pointA, pointB-dis, BackgroundMovementSpeed * Time.deltaTime);
-    		// 	// joystickBackground.position = new Vector3(pointA.x+Camera.main.transform.position.x, pointA.y+Camera.main.transform.position.y, joystickBackground.position.z);
-    		// 	// joystickBackground.position = Vector3.MoveTowards(joystickBackground.position, new Vector3(pointB.x, pointB.y, joystickBackground.position.z), BackgroundMovementSpeed * Time.deltaTime);
-    		// 	Debug.Log("MOVE! " + pointA);
-	    	// 	offset =  pointB - new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y) - pointA + cameraStartPos;
-    		}
-
-    		// if(ajustPos)
-    		// {
-    		// 	Debug.Log("DEBUG: "+(-(1.2f - (pointB-pointA).magnitude)));
-    		// 	pointA = Vector2.Lerp(pointA, pointB, -(1.2f - (pointB-pointA).magnitude));
-    		// 	ajustPos = false;
-
-    		// }
-    		// aa.position = new Vector3(pointA.x+dis.x, pointA.y+dis.y, aa.position.z);
-			joystickBackground.position = new Vector3(pointA.x+dis.x, pointA.y+dis.y, joystickBackground.position.z);
-			joystickForground.position = new Vector3(pointB.x, pointB.y, joystickForground.position.z);
-    		// aa.position = new Vector3(pointA.x+Camera.main.transform.position.x, pointA.y+Camera.main.transform.position.y, aa.position.z);
-    		// bb.position = new Vector3(pointB.x, pointB.y, bb.position.z);
-    		// else
-    		// {
-	    	// 	joystickBG.position = Camera.main.ScreenToWorldPoint(new Vector3(pointA_screen.x, pointA_screen.y, joystickBG.position.z));
-    		// }
-    	}
-		// else
-		// {
-  //   		joystickBG.position = Camera.main.ScreenToWorldPoint(new Vector3(pointA_screen.x, pointA_screen.y, joystickBG.position.z));
-		// }
     }
 
-    // private void FixedUpdate()
-    // {
-    // 	if(touchStart)
-    // 	{
-    // 		joystickBG.position = Camera.main.ScreenToWorldPoint(new Vector3(pointA_screen.x, pointA_screen.y, joystickBG.position.z));
-    // 		Debug.Log(pointA + " | " + (pointB - new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y)));
-    // 		Vector2 offset =  pointB - new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y) - pointA + cameraStartPos;
-    // 		Vector2 direction = Vector2.ClampMagnitude(offset, 1);
-    // 		moveCharacter(direction);
-    // 	}
-    // }
+
+    private void ResetJoystickPosition()
+    {
+        joystickBackground.position = Camera.main.ScreenToWorldPoint(joystickBG_backup);
+        joystickForground.localPosition = Vector3.zero;
+        // print(">_ResetJoystickPosition_<");
+    }
+
+
+    private bool IsCollidingWithOtherObject(Touch touch)
+    {
+        Vector3 touchPosWorld = Camera.main.ScreenToWorldPoint(touch.position);
+        Vector2 touchPosWorld2D = new Vector2(touchPosWorld.x, touchPosWorld.y);
+
+        //We now raycast with this information. If we have hit something we can process it.
+        RaycastHit2D hitInformation = Physics2D.Raycast(touchPosWorld2D, Camera.main.transform.forward);
+
+        if (hitInformation.collider != null) {
+
+            foreach(string name in ignore) {
+
+                if(name == hitInformation.transform.gameObject.name)
+                {
+                    // print(">_colliding_<");
+                    return true;
+
+                }
+            }
+        }
+     
+        return false;
+    }
+
+
+    private int GetTouchNum()
+    {
+        for(int c=0; c<Input.touchCount; c++)
+        {
+            Touch t = Input.GetTouch(c);
+
+            if(GetSideTouched(t.position) == side && t.phase == TouchPhase.Began && !IsCollidingWithOtherObject(t))
+            {
+                return c;
+            }
+        }
+
+        return -1;
+    }
+
+
+    // Atualiza o valor do toque caso seja removido ou adicionado outro toque
+    private int UpdateTouchNum(string val="++")
+    {
+        int tmp = touchNum, count = Input.touchCount;
+        for(int c=0; c<Input.touchCount; c++)
+        { 
+            Touch t = Input.GetTouch(c);
+
+            if(c <= touchNum)
+            {
+                if(t.phase == TouchPhase.Began && val == "++")
+                {
+                    tmp++;
+                    print("++");
+                }
+                else if(t.phase == TouchPhase.Ended && val == "--")
+                {
+                    tmp--;
+                    print("--");
+                }
+            }
+        }
+
+        return tmp;
+    }
+
+
+    private bool GetIfCanTouch()
+    {
+        for(int c=0; c<Input.touchCount; c++)
+        {
+            if(GetSideTouched(Input.GetTouch(c).position) == side)
+            {
+                touchNum = c;
+                return true;
+            }
+
+        }
+
+
+        return false;
+    }
+
 
     void moveCharacter(Vector2 direction)
     {
     	if(SpeedSensitive)
     	{
-	    	player.Translate(direction * PlayerMovementSpeed * Time.deltaTime);
+	    	player.Translate((direction) * PlayerMovementSpeed * Time.deltaTime,  Space.World);
     	}
     	else
     	{
-	    	player.Translate(direction * PlayerMovementSpeed * Time.deltaTime);
-	    	player.position = Vector3.MoveTowards(player.position, player.position+new Vector3(direction.x, direction.y, 0), PlayerMovementSpeed / 2 * Time.deltaTime);
+	    	player.position = Vector3.MoveTowards(player.position, player.position+new Vector3(direction.x, direction.y, 0), PlayerMovementSpeed * Time.deltaTime);
     	}
+    }
+
+    // private IEnumerator MergeList()
+    private void MergeList()
+    {
+        ignore = IgnoreByName;
+        foreach(Collider2D col in IgnoreByCollider)
+        {
+            ignore.Add(col.name);
+            // yield return null;
+        }
     }
 
     public void KeepMoveToFace()
@@ -203,13 +270,13 @@ public class BrawlStarsJoystick : MonoBehaviour
     	keepMoving = true;
     }
 
-    public void Reset()
-    {
-    	keepMoving = false;
-    	transform.localScale = scaleBackup;
-    	transform.position = positionBackup;
-    	Camera.main.transform.position = cameraStartPosBackup; 
-    }
+    // public void Reset()
+    // {
+    // 	keepMoving = false;
+    // 	transform.localScale = scaleBackup;
+    // 	transform.position = positionBackup;
+    // 	Camera.main.transform.position = cameraStartPosBackup; 
+    // }
 
     public void SetZ(float z)
     {
@@ -261,6 +328,8 @@ public class BrawlStarsJoystick : MonoBehaviour
     		bool aux = false;
     		for(int c=0; c<Input.touchCount; c++)
     		{
+                // try:
+                print("C_> "+c);
     			if(GetSideTouched(Input.GetTouch(c).position) == side)
     			{
     				touchNum = c;
@@ -281,5 +350,77 @@ public class BrawlStarsJoystick : MonoBehaviour
     		yield return null;
     	}
     }
+
+    public void RotatePlayer(Transform p)
+    {
+        Quaternion neededRotation = Quaternion.LookRotation(Vector3.forward, new Vector3(direction.x*20, direction.y*20, 0));
+        player.rotation = Quaternion.Slerp(player.rotation, neededRotation, 100 * Time.deltaTime);
+    }
+
+    // Retorna a primeira posicao fora do raio de um ponto A a B 
+    private Vector2 GetPosition(Vector2 point_a, Vector2 point_b, float ray)
+    {
+        Vector2 distance = point_b - point_a;
+        float   maxValue = Mathf.Max(distance.x,distance.y);
+        distance /= maxValue;
+
+        return point_a + ray * distance ;
+
+    }
+
+    public Vector2 GetQuadrant(Vector2 point_a, Vector2 point_b)
+    {
+        float x = point_b.x-point_a.x, y = point_b.y-point_a.y, x2=0, y2=0;
+        if(x != 0)
+        {
+            x2 = Mathf.Abs(x)/x;
+        }
+        if(y != 0)
+        {
+            y2 = Mathf.Abs(y)/y;
+        }
+
+        return new Vector2(x2, y2);
+    }
+
+    public float GetCatetoOposto(Vector2 point_a, Vector2 point_b)
+    {
+        return GetMagnitude(new Vector2(point_b.x, point_a.y), point_b);
+    }
+
+    public float GetCatetoAdjacente(Vector2 point_a, Vector2 point_b)
+    {
+        return GetMagnitude(point_a, new Vector2(point_b.x, point_a.y));
+        // return point_a.x+Mathf.Abs(point_b.x);
+    }
+
+    public float GetMagnitude(Vector2 point_a, Vector2 point_b)
+    {
+        Vector2 distance = GetDistance(point_a, point_b);
+        return Mathf.Sqrt(distance.x*distance.x + distance.y*distance.y);
+    }
+
+    public Vector2 GetDistance(Vector2 point_a, Vector2 point_b)
+    {
+        return point_b - point_a;
+    }
+
+    public float GetCos(Vector2 point_a, Vector2 point_b)
+    {
+        float catetoAdjacente   = GetCatetoAdjacente(point_a, point_b);
+        float hipotenusa        = GetMagnitude(point_a, point_b);
+
+        return catetoAdjacente/hipotenusa;
+    }
+
+    public float GetSen(Vector2 point_a, Vector2 point_b)
+    {
+        float catetoOposto      = GetCatetoOposto(point_a, point_b);
+        float hipotenusa        = GetMagnitude(point_a, point_b);
+
+        return catetoOposto/hipotenusa;
+
+    }
+
 
 }
