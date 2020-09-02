@@ -6,6 +6,12 @@ public class BrawlStarsJoystick : MonoBehaviour
 {
     [Tooltip("Se o controle pode ser usado em qualquer parte da tela")]
 	public bool OnFullscreen;
+
+    [Tooltip("GameObject que vai ser controlado")]
+	public Transform objectToMove;
+
+    [Tooltip("Rotacionar 'objectToMove' na direção que está se movendo")]
+    public bool RotateToFace;
     // [Space(10, order = 0)]
     // [Header("Header with some space around it", order = 1)]
     // [Space(40, order = 2)]
@@ -14,11 +20,11 @@ public class BrawlStarsJoystick : MonoBehaviour
 	public float PlayerMovementSpeed = 2;
 	public bool SpeedSensitive;
 
-	public float BackgroundMovementSpeed = 7, DeadArea = 0.3f, AreaBoundary = 0;
-	public Transform joystickBackground, joystickForground;
-	public Transform player;
-    [Tooltip("GameObjects que podem causar interferência, por exemplo botões. (precisam ter Collider2D)")]
+	public float DeadArea = 0.3f, AreaBoundary = 0;
+	public Transform joystickBackground, joystickForeground;
+    [Tooltip("GameObjects que podem causar interferência, por exemplo botões")]
     public List<Collider2D> IgnoreByCollider;
+    [Tooltip("GameObjects que podem causar interferência, por exemplo botões")]
 	public List<string> IgnoreByName;
 
 
@@ -28,7 +34,7 @@ public class BrawlStarsJoystick : MonoBehaviour
 	private bool touchStart, ajustPos, keepMoving, canTouch, justForTest;
 	private Vector2 pointA, pointB, cameraStartPos, offset, direction, dis;
 	private Vector3 joystickBG_backup, pointA_screen, scaleBackup, positionBackup, cameraStartPosBackup;
-	private string side;
+	private string side = "fullScreen";
     private Touch touch_tmp;
 
 
@@ -68,11 +74,11 @@ public class BrawlStarsJoystick : MonoBehaviour
 	    	side = "left";
     	}
     	// Debug.Log("orientation: "+orientation);
-        // player = GetComponent<Transform>();
+        // objectToMove = GetComponent<Transform>();
         touchs = Input.touchCount;
-        AreaLimite = joystickBackground.localScale.x*1.865f + AreaBoundary;
-        scaleBackup = player.transform.localScale;
-        // positionBackup = player.transform.position;
+        AreaLimite = (joystickBackground.localScale.x*transform.localScale.x*1.865f) + AreaBoundary;
+        scaleBackup = objectToMove.transform.localScale;
+        // positionBackup = objectToMove.transform.position;
         // Debug.Log("DEBUG HERE: " + Camera.main.WorldToScreenPoint(joystickBackground.position));
         cameraStartPosBackup = Camera.main.transform.position;
         // joystickBG_backup = Camera.main.ScreenToWorldPoint(joystickBackground.position);
@@ -82,6 +88,12 @@ public class BrawlStarsJoystick : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+
+        if(touchNum == -1)
+        {
+            ResetJoystickPosition();
+        }
+
         if(!touchStart)
         {
 
@@ -90,7 +102,7 @@ public class BrawlStarsJoystick : MonoBehaviour
                 touchNum = GetTouchNum();
                 if(touchNum != -1)
                 {
-                    touchs = Input.touchCount;
+                    // touchs = Input.touchCount;
                     touchStart = true;
         	    	cameraStartPos = new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y);
                     pointA_screen = new Vector3(Input.GetTouch(touchNum).position.x, Input.GetTouch(touchNum).position.y, Camera.main.transform.position.z);
@@ -115,8 +127,9 @@ public class BrawlStarsJoystick : MonoBehaviour
             else
             {
             	pointB = Camera.main.ScreenToWorldPoint(new Vector3(Input.GetTouch(touchNum).position.x, Input.GetTouch(touchNum).position.y, Camera.main.transform.position.z));
-                offset =  pointB - new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y) - pointA + cameraStartPos;
                 dis = new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y) - cameraStartPos;
+                offset =  pointB - pointA - dis;
+                // offset =  pointB - new Vector2(Camera.main.transform.position.x, Camera.main.transform.position.y) - pointA + cameraStartPos;
                 float cos = GetCos(pointA, pointB-dis);
                 float sen = GetSen(pointA, pointB-dis);
                 Vector2 quadrant = GetQuadrant(pointA, pointB-dis);
@@ -125,7 +138,7 @@ public class BrawlStarsJoystick : MonoBehaviour
 
                 if(offset.magnitude > DeadArea)
                 {
-                    RotatePlayer(player);    
+                    if(RotateToFace){RotateToFaceObjectToMove();}
                     moveCharacter(direction);
                 }
 
@@ -133,14 +146,14 @@ public class BrawlStarsJoystick : MonoBehaviour
                 {
                     float aux = 1.865f;
 
-                    Vector2 intersectionPoint = new Vector2((quadrant.x*cos*aux*joystickBackground.localScale.x+pointA.x), (quadrant.y*sen*aux*joystickBackground.localScale.y+pointA.y));
+                    Vector2 intersectionPoint = new Vector2((quadrant.x*cos*AreaLimite+pointA.x), (quadrant.y*sen*AreaLimite+pointA.y));
                     Vector2 moveTo = pointA+pointB-dis-intersectionPoint;
                     pointA = moveTo;
 
                 }
 
                 joystickBackground.position = new Vector3(pointA.x+dis.x, pointA.y+dis.y, joystickBackground.position.z);
-                joystickForground.position = new Vector3(pointB.x, pointB.y, joystickForground.position.z);
+                joystickForeground.position = new Vector3(pointB.x, pointB.y, joystickForeground.position.z);
 
             }
             touchNum = UpdateTouchNum("--");
@@ -152,7 +165,7 @@ public class BrawlStarsJoystick : MonoBehaviour
     private void ResetJoystickPosition()
     {
         joystickBackground.position = Camera.main.ScreenToWorldPoint(joystickBG_backup);
-        joystickForground.localPosition = Vector3.zero;
+        joystickForeground.localPosition = new Vector3(0,0, joystickForeground.localPosition.z);
         // print(">_ResetJoystickPosition_<");
     }
 
@@ -246,11 +259,11 @@ public class BrawlStarsJoystick : MonoBehaviour
     {
     	if(SpeedSensitive)
     	{
-	    	player.Translate((direction) * PlayerMovementSpeed * Time.deltaTime,  Space.World);
+	    	objectToMove.Translate((direction) * PlayerMovementSpeed * Time.deltaTime,  Space.World);
     	}
     	else
     	{
-	    	player.position = Vector3.MoveTowards(player.position, player.position+new Vector3(direction.x, direction.y, 0), PlayerMovementSpeed * Time.deltaTime);
+	    	objectToMove.position = Vector3.MoveTowards(objectToMove.position, objectToMove.position+new Vector3(direction.x, direction.y, 0), PlayerMovementSpeed * Time.deltaTime);
     	}
     }
 
@@ -280,12 +293,12 @@ public class BrawlStarsJoystick : MonoBehaviour
 
     public void SetZ(float z)
     {
-    	player.transform.position = new Vector3(player.transform.position.x, player.transform.position.y, z);
+    	objectToMove.transform.position = new Vector3(objectToMove.transform.position.x, objectToMove.transform.position.y, z);
     }
 
     public string GetSideTouched(Vector2 pos)
     {
-    	string side_tmp = "";
+    	string side_tmp = "fullScreen";
 
     	// if(Camera.main.WorldToScreenPoint(pos).x < Screen.width/2)
     	// Debug.Log(pos.x);
@@ -300,7 +313,7 @@ public class BrawlStarsJoystick : MonoBehaviour
 	    		side_tmp = "right";
 	    	}
     	}
-    	else
+    	else if(side == "down" || side == "up")
     	{
 	    	if(pos.y < Screen.height/2)
 	    	{
@@ -351,10 +364,10 @@ public class BrawlStarsJoystick : MonoBehaviour
     	}
     }
 
-    public void RotatePlayer(Transform p)
+    public void RotateToFaceObjectToMove()
     {
         Quaternion neededRotation = Quaternion.LookRotation(Vector3.forward, new Vector3(direction.x*20, direction.y*20, 0));
-        player.rotation = Quaternion.Slerp(player.rotation, neededRotation, 100 * Time.deltaTime);
+        objectToMove.rotation = Quaternion.Slerp(objectToMove.rotation, neededRotation, 100 * Time.deltaTime);
     }
 
     // Retorna a primeira posicao fora do raio de um ponto A a B 
