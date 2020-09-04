@@ -4,9 +4,9 @@ Controle de movimentação para celular, similar ao do jogo "brawl stars". Imple
 
 
 #### Como implementar:<br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;1- baixar e importar o arquivo [BrawlStarsJoystick.unitypackage](https://github.com/JHDsBR/Mobile_Joystick_Brawl_Stars/blob/master/BrawlStarsJoystick.unitypackage) ao seu projeto Unity.<br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2- no Unity abra a basta que acabou de importar e adicione o prefab "Joystick" a sua cena<br />
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;3- clique no joystick e no script "BrawlStarsJoystick" adicione á variável "objectToMove" o gameObject que vai ser controlado<br />
+1. baixar e importar o arquivo [BrawlStarsJoystick.unitypackage](https://github.com/JHDsBR/Mobile_Joystick_Brawl_Stars/blob/master/BrawlStarsJoystick.unitypackage) ao seu projeto Unity.<br />
+2. no Unity abra a basta que acabou de importar e adicione o prefab "Joystick" a sua cena<br />
+3. clique no joystick e no script "BrawlStarsJoystick" adicione á variável "objectToMove" o gameObject que vai ser controlado<br />
 
 #### Inspector:<br />
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;![Inspector](https://github.com/JHDsBR/Mobile_Joystick_Brawl_Stars/blob/master/Imagens/Inspector.png)<br /><br />
